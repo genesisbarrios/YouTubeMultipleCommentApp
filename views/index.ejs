@@ -1,0 +1,203 @@
+<!doctype html>
+<html>
+    <!-- API KEY:  AIzaSyDfTlm5TM1cqk3jBRd3wxXzFhOYa-cwhTw -->
+    <head>  
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">   
+        <script src="https://apis.google.com/js/platform.js?onload=init" async defer></script>
+        <script>
+            function init() {
+
+                gapi.load('auth2', function() {
+                    /* Ready. Make a call to gapi.auth2.init or some other API */
+
+                    function authenticate() {
+                        return gapi.auth2.getAuthInstance()
+                            .signIn({scope: "https://www.googleapis.com/auth/youtube.force-ssl"})
+                            .then(function() { console.log("Sign-in successful"); },
+                                function(err) { console.error("Error signing in", err); });
+                    }
+                    function loadClient() {
+                        gapi.client.setApiKey("");
+                        return gapi.client.load("https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest")
+                            .then(function() { console.log("GAPI client loaded for API"); },
+                                function(err) { console.error("Error loading GAPI client for API", err); });
+                    }
+
+                    gapi.load("client:auth2", function() {
+                        gapi.auth2.init({client_id: "478209681032-2pq74aca31jcl792qd67o19rgdoj208p.apps.googleusercontent.com"});
+                    });  
+
+                    //commenting functions
+
+                    function addTopLevelComment() {
+                        var channelId = ""
+                        var videoId = ""
+                        var comment = ""
+                        return gapi.client.youtube.commentThreads.insert({
+                        "part": "snippet",
+                        "resource": {
+                            "snippet": {
+                            "channelId": channelId,
+                            "topLevelComment": {
+                                "snippet": {
+                                "textOriginal": comment
+                                }
+                            },
+                            "videoId": videoId
+                            }
+                        }
+                        }).then(function(response) {
+                                    // Handle the results here (response.result has the parsed body).
+                                    console.log("Response", response);
+                            },
+                            function(err) { console.error("Execute error", err); });
+                    }
+
+                    function getListOfComments() {
+                        var videoId = document.getElementById("videoid").value;
+                        var keyword = document.getElementById("keyword").value;
+                        var commentText = document.getElementById("commentText").value;
+
+                        gapi.client.youtube.commentThreads.list({
+                            "part": "snippet,replies",
+                            "videoId": videoId,
+                            "maxResults": 100
+                        }).then(function(response) {
+                                // Handle the results here (response.result has the parsed body).
+                                //console.log("Response", response);
+                                var comments = response.result.items
+                                comment(comments, keyword, commentText)
+                                },
+                                function(err) { console.error("Execute error", err); });
+                    }
+
+                    function comment(comments, keyword, commentText){
+                        //filter comments
+                        var filteredComments;
+                        if(keyword != ""){
+                            filteredComments = [];
+                            for(var i=0; i < comments.length; i++){
+                                if(comments[i].snippet.topLevelComment.snippet.textOriginal.toLowerCase().includes(keyword.toLowerCase())){
+                                    filteredComments.push(comments[i]);
+                                }
+                            }
+                        }else{
+                            filteredComments = comments;
+                        }
+
+                        console.log(filteredComments)
+
+                        //loop through filteredComments and reply to each comment with commentText
+                        if(commentText != ""){
+                            for(var i=0; i < filteredComments.length; i++){
+                                if(filteredComments[i].snippet.canReply == true){
+                                    replyComment(filteredComments[i].id, commentText)
+                                }
+                            }
+                        }else{
+                            //give feedback(success or failure)
+                            document.getElementById("feedback").innerHTML = "Comment is empty.";
+                            document.getElementById("feedback").classList.remove('alert-success');
+                            document.getElementById("feedback").classList.add('alert');
+                            document.getElementById("feedback").classList.add('alert-danger');
+                        }
+                    }
+
+                    function replyComment(id, text){
+                        return gapi.client.youtube.comments.insert({
+                            "part": "snippet",
+                            "resource": {
+                              "snippet": {
+                                "parentId": id,
+                                "textOriginal":text
+                              }
+                            }
+                          }).then(function(response) {
+                                // Handle the results here (response.result has the parsed body).
+                                console.log("Response", response);
+                                
+                                //give feedback(success or failure)
+                                document.getElementById("feedback").innerHTML = "Comments submitted.";
+                                document.getElementById("feedback").classList.remove('alert-danger');
+                                document.getElementById("feedback").classList.add('alert');
+                                document.getElementById("feedback").classList.add('alert-success');
+                            },
+                            function(err) { console.error("Execute error", err); });
+                        }
+
+
+                    // onclick functionss
+                    document.getElementById("auth").onclick = function(){
+                        authenticate().then(loadClient()).then(
+                            function(){
+                                document.getElementById("login").style.display = "none";
+                                document.getElementById("comment").style.display = "block";
+
+                                document.getElementById("group1").style.height = "20%";
+                                document.getElementById("group2").style.height = "40%";
+                                document.getElementById("group3").style.height = "20%";
+                            }
+                        )
+                    }
+
+                    document.getElementById("exec").onclick = function(){
+                        getListOfComments();
+                    }
+                });
+            } 
+        </script>
+    </head>
+    <body style="background-color:black;">
+        <nav class="navbar-dark bg-dark">
+            <ul class="nav">
+                <li class="nav-item">
+                    <a class="navbar-brand" href="/">Youtube Multiple Comment App</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" style="color:white;" href="https://github.com/genesisbarrios/YouTubeMultipleCommentApp" target="_blank">Github</a>
+                </li>
+          </ul>
+        </nav>
+
+        <div style="height:80vh;">
+            <div id="group1" style="height:40%;"></div>
+            <div id="group2" style="height:20%;">
+
+                <div class="row">
+                    <div class="col-3"></div>
+                    <div class="col-6" id="login">
+                        <h3 style="text-align:center; color:white;">YouTube Multiple Comment Application</h3>
+                        <div class="row">
+                            <div class="col-5"></div>
+                            <button id="auth" type="button" class="btn btn-danger col-2" >Log In</button>
+                            <div class="col-5"></div>
+                        </div>
+                    </div>
+                    <div class="col-6" id="comment" style="color:white; display:none;">
+                        <div id="feedback"></div>
+                        <h3 style="text-align:center; color:white;">YouTube Multiple Comment Application</h3>
+                        
+                        <div class="form-group">
+                            <label for="videoid">Video Id</label>
+                            <input type="text" name="videoid" id="videoid" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="keyword">Keyword</label>
+                            <input type="text" name="keyword" id="keyword" class="form-control">
+                        </div>
+    
+                        <div class="form-group">
+                            <label for="commentText">Comment</label>
+                            <input type="text" name="commentText" id="commentText" class="form-control">
+                        </div>
+    
+                        <button class="btn btn-danger" id="exec">Submit</button>
+                    </div>
+                    <div class="col-3"></div>
+                </div>
+            </div>
+            <div id="group3" style="height:40%;"></div>
+        </div>
+    </body>
+</html>
